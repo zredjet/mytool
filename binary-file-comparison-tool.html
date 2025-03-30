@@ -1,0 +1,2194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>バイナリファイル比較ツール</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .input-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .visualization-section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: auto;
+            max-height: 70vh;
+        }
+        
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .file-input-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        /* ファイルリスト表示 */
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .file-item {
+            padding: 8px 16px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #ddd;
+            position: relative;
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-item.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+        
+        /* 比較モード用コントロール */
+        .comparison-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+        }
+        
+        .file-selector-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        select {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        /* タブ */
+        .tab-container {
+            margin-top: 20px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #f8f8f8;
+            border: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+        
+        .tab-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* 木構造の視覚化スタイル */
+        .tree-view {
+            font-family: monospace;
+            padding: 10px;
+        }
+        
+        .tree-node {
+            margin-left: 20px;
+            position: relative;
+        }
+        
+        .tree-node::before {
+            content: "";
+            position: absolute;
+            left: -10px;
+            top: 10px;
+            width: 10px;
+            height: 1px;
+            background-color: #888;
+        }
+        
+        .tree-node-parent::before {
+            content: "";
+            position: absolute;
+            left: -10px;
+            top: 10px;
+            bottom: 0;
+            width: 1px;
+            background-color: #888;
+        }
+        
+        .node-content {
+            padding: 2px 5px;
+            border-radius: 3px;
+            display: inline-block;
+            margin: 2px 0;
+        }
+        
+        .header-node {
+            background-color: rgba(52, 152, 219, 0.1);
+            border-left: 3px solid #3498db;
+        }
+        
+        .record-node {
+            background-color: rgba(155, 89, 182, 0.1);
+            border-left: 3px solid #9b59b6;
+        }
+        
+        .subrecord-node {
+            background-color: rgba(46, 204, 113, 0.1);
+            border-left: 3px solid #2ecc71;
+        }
+        
+        .field-node {
+            background-color: rgba(230, 126, 34, 0.1);
+            border-left: 3px solid #e67e22;
+        }
+        
+        .offset-label {
+            color: #888;
+            font-size: 0.8em;
+            margin-right: 5px;
+        }
+        
+        .field-description {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-left: 10px;
+            font-style: italic;
+        }
+        
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .collapsible::before {
+            content: "▼ ";
+            font-size: 0.8em;
+        }
+        
+        .collapsed::before {
+            content: "► ";
+            font-size: 0.8em;
+        }
+        
+        .collapsed + .tree-node {
+            display: none;
+        }
+        
+        /* 16進数表示のスタイル */
+        .hex-dump {
+            font-family: monospace;
+            overflow-x: auto;
+            margin-top: 20px;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        
+        .hex-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        
+        .hex-offset {
+            color: #888;
+            width: 80px;
+        }
+        
+        .hex-values {
+            flex-grow: 1;
+        }
+        
+        .hex-byte {
+            display: inline-block;
+            width: 25px;
+            color: #333;
+        }
+        
+        .hex-byte.highlight {
+            background-color: rgba(255, 193, 7, 0.3);
+            font-weight: bold;
+        }
+        
+        .hex-ascii {
+            margin-left: 20px;
+            color: #666;
+        }
+        
+        .hex-ascii .highlight {
+            background-color: rgba(255, 193, 7, 0.3);
+            font-weight: bold;
+        }
+        
+        /* ローディングインジケーター */
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 比較表示用のスタイル */
+        .comparison-view {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .comparison-column {
+            flex: 1;
+            min-width: 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .comparison-column-header {
+            text-align: center;
+            padding: 5px;
+            background-color: #f8f8f8;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .comparison-summary {
+            background-color: #f8f8f8;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        
+        .diff-highlight {
+            background-color: rgba(255, 193, 7, 0.3) !important;
+            border-left-color: #ffc107 !important;
+        }
+        
+        .missing-element {
+            background-color: rgba(231, 76, 60, 0.1) !important;
+            border-left-color: #e74c3c !important;
+            color: #e74c3c;
+        }
+        
+        .additional-element {
+            background-color: rgba(46, 204, 113, 0.1) !important;
+            border-left-color: #2ecc71 !important;
+            color: #2ecc71;
+        }
+        
+        /* 差分表示のみのビュー */
+        .diff-only-view {
+            padding: 10px;
+        }
+        
+        .diff-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .diff-section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        /* フィルターコントロール */
+        .diff-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .diff-filter-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>バイナリファイル比較ツール</h1>
+    
+    <div class="container">
+        <div class="input-section">
+            <div class="file-input-wrapper">
+                <label for="fileInput">バイナリファイルを選択 (複数選択可):</label>
+                <input type="file" id="fileInput" multiple>
+                
+                <div id="fileList" class="file-list">
+                    <!-- 選択されたファイルのリストがここに表示される -->
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="analyzeBtn">解析</button>
+                <button id="expandAllBtn">すべて展開</button>
+                <button id="collapseAllBtn">すべて折りたたむ</button>
+            </div>
+            
+            <!-- 比較モード用コントロール -->
+            <div class="comparison-controls">
+                <button id="compareBtn" disabled>ファイル比較</button>
+                
+                <div class="file-selector-group">
+                    <label for="baseFileSelector">基準:</label>
+                    <select id="baseFileSelector" disabled></select>
+                </div>
+                
+                <div class="file-selector-group">
+                    <label for="compareFileSelector">比較対象:</label>
+                    <select id="compareFileSelector" disabled></select>
+                </div>
+                
+                <div class="file-selector-group">
+                    <label for="comparisonType">表示方法:</label>
+                    <select id="comparisonType" disabled>
+                        <option value="sideBySide">左右比較</option>
+                        <option value="diffOnly">差分のみ表示</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>解析中...</p>
+        </div>
+        
+        <div class="visualization-section">
+            <div class="tab-container" id="tabContainer">
+                <div class="tab-buttons">
+                    <button class="tab-button active" data-tab="structure">構造ビュー</button>
+                    <button class="tab-button" data-tab="hexdump">16進数ダンプ</button>
+                </div>
+                
+                <div class="tab-content active" id="structure">
+                    <div id="treeView" class="tree-view">
+                        <!-- ここに構造ビューが表示されます -->
+                        <div class="placeholder">ファイルを選択して「解析」ボタンをクリックしてください</div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="hexdump">
+                    <div id="hexDump" class="hex-dump">
+                        <!-- ここに16進数ダンプが表示されます -->
+                        <div class="placeholder">ファイルを選択して「解析」ボタンをクリックしてください</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // ======================================================================
+        // バイナリ構造の定義（ここを編集して特定の構造を定義）
+        // ======================================================================
+        
+        // バイナリデータの構造定義
+        const BINARY_STRUCTURE = {
+            // マジックナンバー（ファイル形式識別子）
+            magicNumber: {
+                value: 0x12345678, // 例: 0x12345678 (リトルエンディアン)
+                offset: 0,
+                size: 4
+            },
+            
+            // ヘッダー定義
+            header: {
+                size: 16, // ヘッダー全体のサイズ
+                fields: [
+                    { name: "マジックナンバー", offset: 0, size: 4, type: "uint32", description: "ファイル識別子 (0x12345678)" },
+                    { name: "バージョン", offset: 4, size: 2, type: "uint16", description: "ファイルフォーマットのバージョン" },
+                    { name: "フラグ", offset: 6, size: 2, type: "uint16", description: "各種フラグ" },
+                    { name: "レコード数", offset: 8, size: 4, type: "uint32", description: "データレコードの総数" },
+                    { name: "予約領域", offset: 12, size: 4, type: "uint32", description: "将来の拡張用" }
+                ]
+            },
+            
+            // レコード（第1層）の定義
+            records: {
+                itemSize: 16, // 各レコードのサイズ
+                fields: [
+                    { name: "ID", offset: 0, size: 4, type: "uint32", description: "レコードのユニークID" },
+                    { name: "タイプ", offset: 4, size: 2, type: "uint16", description: "レコードのタイプ" },
+                    { name: "サブレコード数", offset: 6, size: 2, type: "uint16", description: "このレコードに含まれるサブレコードの数" },
+                    { name: "サブレコードオフセット", offset: 8, size: 4, type: "uint32", description: "サブレコードへの相対オフセット" },
+                    { name: "フラグ", offset: 12, size: 4, type: "uint32", description: "レコード固有のフラグ" }
+                ]
+            },
+            
+            // サブレコード（第2層）の定義
+            subRecords: {
+                itemSize: 12, // 各サブレコードのサイズ
+                fields: [
+                    { name: "サブID", offset: 0, size: 4, type: "uint32", description: "サブレコードのID" },
+                    { name: "データ数", offset: 4, size: 2, type: "uint16", description: "このサブレコードに含まれるデータアイテムの数" },
+                    { name: "データタイプ", offset: 6, size: 2, type: "uint16", description: "データの型 (0:整数, 1:浮動小数点数, 2:文字列)" },
+                    { name: "データオフセット", offset: 8, size: 4, type: "uint32", description: "データアイテムへの相対オフセット" }
+                ]
+            },
+            
+            // データアイテム（第3層）の定義
+            dataItems: {
+                // データタイプごとに異なるサイズと解析方法
+                types: {
+                    0: { // 整数型
+                        size: 4,
+                        type: "int32",
+                        name: "整数値",
+                        description: "32ビット整数値"
+                    },
+                    1: { // 浮動小数点数型
+                        size: 8,
+                        type: "float64",
+                        name: "浮動小数点値",
+                        description: "64ビット浮動小数点数"
+                    },
+                    2: { // 文字列型
+                        // 文字列は可変長、最初の4バイトがサイズ
+                        sizePrefix: 4,
+                        type: "string",
+                        name: "文字列",
+                        description: "UTF-8エンコードの文字列"
+                    }
+                }
+            }
+        };
+        
+        // エンディアン（必要に応じて変更）
+        const ENDIANNESS = 'little'; // 'little' または 'big'
+        
+        // ======================================================================
+        // グローバル変数
+        // ======================================================================
+        
+        // 単一ファイル用
+        let fileData = null;      // 読み込んだバイナリデータ
+        let parsedStructure = null; // 解析された構造
+        
+        // 複数ファイル用
+        let fileDataList = [];      // 複数ファイルのバイナリデータ配列
+        let parsedStructureList = []; // 複数ファイルの解析済み構造配列
+        let activeFileIndex = 0;     // 現在表示中のファイルインデックス
+        
+        // 比較結果用
+        let comparisonResult = null; // 比較結果
+        
+        // ======================================================================
+        // メイン処理
+        // ======================================================================
+        
+        // DOMが読み込まれたら実行
+        document.addEventListener('DOMContentLoaded', () => {
+            // 要素の参照を取得
+            const fileInput = document.getElementById('fileInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const expandAllBtn = document.getElementById('expandAllBtn');
+            const collapseAllBtn = document.getElementById('collapseAllBtn');
+            const compareBtn = document.getElementById('compareBtn');
+            const baseFileSelector = document.getElementById('baseFileSelector');
+            const compareFileSelector = document.getElementById('compareFileSelector');
+            const comparisonType = document.getElementById('comparisonType');
+            const treeView = document.getElementById('treeView');
+            const hexDump = document.getElementById('hexDump');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const fileList = document.getElementById('fileList');
+            
+            // タブの切り替え機能
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.getAttribute('data-tab');
+                    
+                    // すべてのタブを非アクティブにする
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // クリックされたタブをアクティブにする
+                    button.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // ファイル選択時の処理
+            fileInput.addEventListener('change', function() {
+                // ファイルリストをクリア
+                fileList.innerHTML = '';
+                fileDataList = [];
+                parsedStructureList = [];
+                activeFileIndex = 0;
+                
+                if (this.files.length === 0) {
+                    compareBtn.disabled = true;
+                    baseFileSelector.disabled = true;
+                    compareFileSelector.disabled = true;
+                    comparisonType.disabled = true;
+                    return;
+                }
+                
+                // ファイルリストを生成
+                Array.from(this.files).forEach((file, index) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = index === 0 ? 'file-item active' : 'file-item';
+                    fileItem.textContent = file.name;
+                    fileItem.dataset.index = index;
+                    
+                    fileItem.addEventListener('click', () => {
+                        // アクティブなファイルを切り替え
+                        document.querySelectorAll('.file-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        fileItem.classList.add('active');
+                        activeFileIndex = parseInt(fileItem.dataset.index);
+                        
+                        // 解析済みデータがあれば表示を更新
+                        if (parsedStructureList[activeFileIndex]) {
+                            renderStructureView(parsedStructureList[activeFileIndex], treeView);
+                            renderHexDump(fileDataList[activeFileIndex], hexDump);
+                        }
+                    });
+                    
+                    fileList.appendChild(fileItem);
+                });
+                
+                // ファイルセレクタを更新
+                updateFileSelectors();
+                
+                // 2つ以上のファイルがある場合は比較機能を有効化
+                compareBtn.disabled = this.files.length < 2;
+                baseFileSelector.disabled = this.files.length < 2;
+                compareFileSelector.disabled = this.files.length < 2;
+                comparisonType.disabled = this.files.length < 2;
+            });
+            
+            // 解析ボタンのクリックイベント
+            analyzeBtn.addEventListener('click', () => {
+                const files = fileInput.files;
+                if (files.length === 0) {
+                    alert('ファイルを選択してください');
+                    return;
+                }
+                
+                // ローディングインジケーターを表示
+                loadingIndicator.style.display = 'block';
+                
+                // 解析済みデータをクリア
+                fileDataList = [];
+                parsedStructureList = [];
+                
+                // 各ファイルを順次解析
+                let filesProcessed = 0;
+                
+                Array.from(files).forEach((file, index) => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(e) {
+                        try {
+                            // 読み込んだデータをArrayBufferとして取得
+                            const data = new Uint8Array(e.target.result);
+                            fileDataList[index] = data;
+                            
+                            // バイナリデータを解析
+                            parsedStructureList[index] = parseStructure(data);
+                            
+                            // すべてのファイルが解析されたら
+                            filesProcessed++;
+                            if (filesProcessed === files.length) {
+                                // アクティブなファイルを表示
+                                renderStructureView(parsedStructureList[activeFileIndex], treeView);
+                                renderHexDump(fileDataList[activeFileIndex], hexDump);
+                                
+                                // ローディングインジケーターを非表示
+                                loadingIndicator.style.display = 'none';
+                            }
+                        } catch (error) {
+                            alert(`ファイル "${file.name}" の解析エラー: ${error.message}`);
+                            console.error(error);
+                            loadingIndicator.style.display = 'none';
+                        }
+                    };
+                    
+                    reader.onerror = function() {
+                        alert(`ファイル "${file.name}" の読み込みに失敗しました`);
+                        filesProcessed++;
+                        if (filesProcessed === files.length) {
+                            loadingIndicator.style.display = 'none';
+                        }
+                    };
+                    
+                    reader.readAsArrayBuffer(file);
+                });
+            });
+            
+            // 比較ボタンのクリックイベント
+            compareBtn.addEventListener('click', () => {
+                const baseIndex = parseInt(baseFileSelector.value);
+                const compareIndex = parseInt(compareFileSelector.value);
+                
+                if (baseIndex === compareIndex) {
+                    alert('比較には異なるファイルを選択してください');
+                    return;
+                }
+                
+                if (!parsedStructureList[baseIndex] || !parsedStructureList[compareIndex]) {
+                    alert('まず「解析」ボタンをクリックして、ファイルを解析してください');
+                    return;
+                }
+                
+                // 比較を実行
+                comparisonResult = compareStructures(
+                    parsedStructureList[baseIndex],
+                    parsedStructureList[compareIndex]
+                );
+                
+                // 比較結果の表示
+                const displayMode = comparisonType.value;
+                if (displayMode === 'sideBySide') {
+                    renderSideBySideComparison(
+                        parsedStructureList[baseIndex],
+                        parsedStructureList[compareIndex],
+                        comparisonResult,
+                        treeView
+                    );
+                } else if (displayMode === 'diffOnly') {
+                    renderDifferencesOnly(
+                        parsedStructureList[baseIndex],
+                        parsedStructureList[compareIndex],
+                        comparisonResult,
+                        treeView
+                    );
+                }
+                
+                // 構造ビュータブをアクティブに
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector('[data-tab="structure"]').classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById('structure').classList.add('active');
+            });
+            
+            // すべて展開ボタンのクリックイベント
+            expandAllBtn.addEventListener('click', () => {
+                const collapsibles = document.querySelectorAll('.collapsible');
+                collapsibles.forEach(el => {
+                    el.classList.remove('collapsed');
+                });
+            });
+            
+            // すべて折りたたむボタンのクリックイベント
+            collapseAllBtn.addEventListener('click', () => {
+                const collapsibles = document.querySelectorAll('.collapsible');
+                collapsibles.forEach(el => {
+                    el.classList.add('collapsed');
+                });
+            });
+            
+            // ツリービューの折りたたみ機能の動的追加
+            document.addEventListener('click', function(event) {
+                if (event.target.classList.contains('collapsible')) {
+                    event.target.classList.toggle('collapsed');
+                }
+            });
+            
+            // ファイルセレクタを更新する関数
+            function updateFileSelectors() {
+                baseFileSelector.innerHTML = '';
+                compareFileSelector.innerHTML = '';
+                
+                Array.from(fileInput.files).forEach((file, index) => {
+                    // 基準ファイルセレクタ
+                    const baseOption = document.createElement('option');
+                    baseOption.value = index;
+                    baseOption.textContent = file.name;
+                    baseFileSelector.appendChild(baseOption);
+                    
+                    // 比較ファイルセレクタ
+                    const compareOption = document.createElement('option');
+                    compareOption.value = index;
+                    compareOption.textContent = file.name;
+                    compareFileSelector.appendChild(compareOption);
+                });
+                
+                // デフォルト選択（2つ以上のファイルがある場合）
+                if (fileInput.files.length >= 2) {
+                    baseFileSelector.value = 0;
+                    compareFileSelector.value = 1;
+                }
+            }
+        });
+        
+        // ======================================================================
+        // バイナリデータ解析関数
+        // ======================================================================
+        
+        /**
+         * バイナリデータの構造を解析する関数
+         * @param {Uint8Array} data - 解析するバイナリデータ
+         * @returns {Object} - 解析された構造
+         */
+        function parseStructure(data) {
+            // 結果オブジェクト
+            const result = {
+                valid: true,
+                errorMessage: "",
+                header: {},
+                records: []
+            };
+            
+            // ファイルサイズの確認
+            if (data.length < BINARY_STRUCTURE.header.size) {
+                result.valid = false;
+                result.errorMessage = "ファイルサイズが小さすぎます。有効なフォーマットではありません。";
+                return result;
+            }
+            
+            // マジックナンバーの確認
+            const magicNumber = readValueFromBuffer(
+                data.slice(BINARY_STRUCTURE.magicNumber.offset, 
+                          BINARY_STRUCTURE.magicNumber.offset + BINARY_STRUCTURE.magicNumber.size),
+                "uint32",
+                ENDIANNESS
+            );
+            
+            if (magicNumber !== BINARY_STRUCTURE.magicNumber.value) {
+                result.valid = false;
+                result.errorMessage = `無効なファイル形式です。マジックナンバーが一致しません。(期待値: 0x${BINARY_STRUCTURE.magicNumber.value.toString(16)}, 実際: 0x${magicNumber.toString(16)})`;
+                return result;
+            }
+            
+            // ヘッダーの解析
+            const headerData = data.slice(0, BINARY_STRUCTURE.header.size);
+            
+            BINARY_STRUCTURE.header.fields.forEach(field => {
+                result.header[field.name] = readValueFromBuffer(
+                    headerData.slice(field.offset, field.offset + field.size),
+                    field.type,
+                    ENDIANNESS
+                );
+            });
+            
+            // レコード数の取得
+            const recordCount = result.header["レコード数"];
+            let currentOffset = BINARY_STRUCTURE.header.size;
+            
+            // レコードの解析
+            for (let i = 0; i < recordCount && currentOffset + BINARY_STRUCTURE.records.itemSize <= data.length; i++) {
+                const recordData = data.slice(currentOffset, currentOffset + BINARY_STRUCTURE.records.itemSize);
+                const record = { subRecords: [] };
+                
+                // レコードフィールドの解析
+                BINARY_STRUCTURE.records.fields.forEach(field => {
+                    record[field.name] = readValueFromBuffer(
+                        recordData.slice(field.offset, field.offset + field.size),
+                        field.type,
+                        ENDIANNESS
+                    );
+                });
+                
+                // オフセットは絶対または相対のどちらか（実装に合わせて調整）
+                const subRecordCount = record["サブレコード数"];
+                const subRecordOffset = record["サブレコードオフセット"];
+                let subRecordPosition = subRecordOffset; // 絶対オフセットの場合
+                // let subRecordPosition = currentOffset + subRecordOffset; // 相対オフセットの場合
+                
+                // サブレコードの解析
+                for (let j = 0; j < subRecordCount && subRecordPosition + BINARY_STRUCTURE.subRecords.itemSize <= data.length; j++) {
+                    const subRecordData = data.slice(subRecordPosition, subRecordPosition + BINARY_STRUCTURE.subRecords.itemSize);
+                    const subRecord = { dataItems: [] };
+                    
+                    // サブレコードフィールドの解析
+                    BINARY_STRUCTURE.subRecords.fields.forEach(field => {
+                        subRecord[field.name] = readValueFromBuffer(
+                            subRecordData.slice(field.offset, field.offset + field.size),
+                            field.type,
+                            ENDIANNESS
+                        );
+                    });
+                    
+                    // データタイプの取得
+                    const dataType = subRecord["データタイプ"];
+                    const dataCount = subRecord["データ数"];
+                    const dataOffset = subRecord["データオフセット"];
+                    let dataPosition = dataOffset; // 絶対オフセットの場合
+                    // let dataPosition = subRecordPosition + dataOffset; // 相対オフセットの場合
+                    
+                    // データタイプの定義があるか確認
+                    if (BINARY_STRUCTURE.dataItems.types[dataType]) {
+                        const typeInfo = BINARY_STRUCTURE.dataItems.types[dataType];
+                        
+                        // データアイテムの解析
+                        for (let k = 0; k < dataCount && dataPosition < data.length; k++) {
+                            if (typeInfo.type === "string") {
+                                // 文字列型の場合
+                                // サイズプレフィックスを読み取り
+                                const stringSize = readValueFromBuffer(
+                                    data.slice(dataPosition, dataPosition + typeInfo.sizePrefix),
+                                    "uint32",
+                                    ENDIANNESS
+                                );
+                                
+                                // 文字列データを読み取り
+                                const stringData = data.slice(
+                                    dataPosition + typeInfo.sizePrefix, 
+                                    dataPosition + typeInfo.sizePrefix + stringSize
+                                );
+                                
+                                // UTF-8でデコード
+                                const stringValue = new TextDecoder().decode(stringData);
+                                
+                                subRecord.dataItems.push({
+                                    type: typeInfo.name,
+                                    value: stringValue,
+                                    offset: dataPosition,
+                                    size: typeInfo.sizePrefix + stringSize
+                                });
+                                
+                                dataPosition += typeInfo.sizePrefix + stringSize;
+                            } else {
+                                // 数値型の場合
+                                const value = readValueFromBuffer(
+                                    data.slice(dataPosition, dataPosition + typeInfo.size),
+                                    typeInfo.type,
+                                    ENDIANNESS
+                                );
+                                
+                                subRecord.dataItems.push({
+                                    type: typeInfo.name,
+                                    value: value,
+                                    offset: dataPosition,
+                                    size: typeInfo.size
+                                });
+                                
+                                dataPosition += typeInfo.size;
+                            }
+                        }
+                    }
+                    
+                    record.subRecords.push(subRecord);
+                    subRecordPosition += BINARY_STRUCTURE.subRecords.itemSize;
+                }
+                
+                result.records.push(record);
+                currentOffset += BINARY_STRUCTURE.records.itemSize;
+            }
+            
+            return result;
+        }
+        
+        /**
+         * バッファから指定された型の値を読み込む関数
+         * @param {Uint8Array} buffer - データバッファ
+         * @param {string} dataType - データ型
+         * @param {string} endianness - エンディアン（'little'または'big'）
+         * @returns {number|string} - 読み込まれた値
+         */
+        function readValueFromBuffer(buffer, dataType, endianness) {
+            const isLittleEndian = endianness === 'little';
+            
+            // 値が読み込めない場合はデフォルト値を返す
+            if (buffer.length === 0) return 0;
+            
+            try {
+                const dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+                
+                switch (dataType) {
+                    case 'int8':
+                        return dataView.getInt8(0);
+                    case 'uint8':
+                        return dataView.getUint8(0);
+                    case 'int16':
+                        return buffer.length >= 2 ? dataView.getInt16(0, isLittleEndian) : 0;
+                    case 'uint16':
+                        return buffer.length >= 2 ? dataView.getUint16(0, isLittleEndian) : 0;
+                    case 'int32':
+                        return buffer.length >= 4 ? dataView.getInt32(0, isLittleEndian) : 0;
+                    case 'uint32':
+                        return buffer.length >= 4 ? dataView.getUint32(0, isLittleEndian) : 0;
+                    case 'float32':
+                        return buffer.length >= 4 ? dataView.getFloat32(0, isLittleEndian) : 0;
+                    case 'float64':
+                        return buffer.length >= 8 ? dataView.getFloat64(0, isLittleEndian) : 0;
+                    case 'string':
+                        // UTF-8でデコード
+                        return new TextDecoder().decode(buffer);
+                    default:
+                        return 0;
+                }
+            } catch (error) {
+                console.error('値の読み込みエラー:', error);
+                return 0;
+            }
+        }
+        
+        // ======================================================================
+        // 表示関数
+        // ======================================================================
+        
+        /**
+         * 構造ビューをレンダリングする関数
+         * @param {Object} structure - 解析された構造
+         * @param {HTMLElement} container - 表示するコンテナ要素
+         */
+        function renderStructureView(structure, container) {
+            // コンテナをクリア
+            container.innerHTML = '';
+            
+            // 解析エラーがある場合
+            if (!structure.valid) {
+                const errorNode = document.createElement('div');
+                errorNode.className = 'error-message';
+                errorNode.textContent = structure.errorMessage;
+                container.appendChild(errorNode);
+                return;
+            }
+            
+            // ヘッダーセクション
+            const headerNode = document.createElement('div');
+            headerNode.className = 'node-content header-node collapsible';
+            headerNode.innerHTML = `ファイルヘッダー`;
+            container.appendChild(headerNode);
+            
+            const headerContent = document.createElement('div');
+            headerContent.className = 'tree-node';
+            
+            // ヘッダーフィールドの表示
+            Object.entries(structure.header).forEach(([key, value]) => {
+                // 該当するフィールド定義を検索
+                const fieldDef = BINARY_STRUCTURE.header.fields.find(f => f.name === key);
+                
+                const fieldNode = document.createElement('div');
+                fieldNode.className = 'node-content field-node';
+                
+                // オフセット、フィールド名、値、説明を表示
+                let displayText = `${key}: ${value}`;
+                
+                if (fieldDef) {
+                    // 16進数表記を追加（特定のタイプの場合）
+                    if (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int')) {
+                        displayText += ` (0x${value.toString(16).padStart(fieldDef.size * 2, '0')})`;
+                    }
+                    
+                    // オフセット情報
+                    displayText = `<span class="offset-label">[0x${fieldDef.offset.toString(16).padStart(4, '0')}]</span> ${displayText}`;
+                    
+                    // 説明がある場合は追加
+                    if (fieldDef.description) {
+                        displayText += ` <span class="field-description">${fieldDef.description}</span>`;
+                    }
+                }
+                
+                fieldNode.innerHTML = displayText;
+                headerContent.appendChild(fieldNode);
+            });
+            
+            container.appendChild(headerContent);
+            
+            // レコードセクション
+            const recordsNode = document.createElement('div');
+            recordsNode.className = 'node-content record-node collapsible';
+            recordsNode.innerHTML = `レコード一覧 (${structure.records.length}件)`;
+            container.appendChild(recordsNode);
+            
+            const recordsContent = document.createElement('div');
+            recordsContent.className = 'tree-node';
+            
+            // 各レコードの表示
+            structure.records.forEach((record, index) => {
+                const recordNode = document.createElement('div');
+                recordNode.className = 'node-content record-node collapsible';
+                recordNode.innerHTML = `レコード #${index + 1} (ID: ${record.ID})`;
+                recordsContent.appendChild(recordNode);
+                
+                const recordContent = document.createElement('div');
+                recordContent.className = 'tree-node';
+                
+                // レコードフィールドの表示
+                Object.entries(record).forEach(([key, value]) => {
+                    if (key !== 'subRecords') {
+                        // 該当するフィールド定義を検索
+                        const fieldDef = BINARY_STRUCTURE.records.fields.find(f => f.name === key);
+                        
+                        const fieldNode = document.createElement('div');
+                        fieldNode.className = 'node-content field-node';
+                        
+                        // オフセット、フィールド名、値、説明を表示
+                        let displayText = `${key}: ${value}`;
+                        
+                        if (fieldDef) {
+                            // 16進数表記を追加（特定のタイプの場合）
+                            if (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int')) {
+                                displayText += ` (0x${value.toString(16).padStart(fieldDef.size * 2, '0')})`;
+                            }
+                            
+                            // 説明がある場合は追加
+                            if (fieldDef.description) {
+                                displayText += ` <span class="field-description">${fieldDef.description}</span>`;
+                            }
+                        }
+                        
+                        fieldNode.innerHTML = displayText;
+                        recordContent.appendChild(fieldNode);
+                    }
+                });
+                
+                // サブレコードの表示
+                if (record.subRecords && record.subRecords.length > 0) {
+                    const subRecordsNode = document.createElement('div');
+                    subRecordsNode.className = 'node-content subrecord-node collapsible';
+                    subRecordsNode.innerHTML = `サブレコード一覧 (${record.subRecords.length}件)`;
+                    recordContent.appendChild(subRecordsNode);
+                    
+                    const subRecordsContent = document.createElement('div');
+                    subRecordsContent.className = 'tree-node';
+                    
+                    // 各サブレコードの表示
+                    record.subRecords.forEach((subRecord, subIndex) => {
+                        const subRecordNode = document.createElement('div');
+                        subRecordNode.className = 'node-content subrecord-node collapsible';
+                        subRecordNode.innerHTML = `サブレコード #${subIndex + 1} (ID: ${subRecord.サブID})`;
+                        subRecordsContent.appendChild(subRecordNode);
+                        
+                        const subRecordContent = document.createElement('div');
+                        subRecordContent.className = 'tree-node';
+                        
+                        // サブレコードフィールドの表示
+                        Object.entries(subRecord).forEach(([key, value]) => {
+                            if (key !== 'dataItems') {
+                                // 該当するフィールド定義を検索
+                                const fieldDef = BINARY_STRUCTURE.subRecords.fields.find(f => f.name === key);
+                                
+                                const fieldNode = document.createElement('div');
+                                fieldNode.className = 'node-content field-node';
+                                
+                                // フィールド名、値、説明を表示
+                                let displayText = `${key}: ${value}`;
+                                
+                                if (fieldDef && fieldDef.description) {
+                                    displayText += ` <span class="field-description">${fieldDef.description}</span>`;
+                                }
+                                
+                                fieldNode.innerHTML = displayText;
+                                subRecordContent.appendChild(fieldNode);
+                            }
+                        });
+                        
+                        // データアイテムの表示
+                        if (subRecord.dataItems && subRecord.dataItems.length > 0) {
+                            const dataItemsNode = document.createElement('div');
+                            dataItemsNode.className = 'node-content field-node collapsible';
+                            dataItemsNode.innerHTML = `データアイテム (${subRecord.dataItems.length}件)`;
+                            subRecordContent.appendChild(dataItemsNode);
+                            
+                            const dataItemsContent = document.createElement('div');
+                            dataItemsContent.className = 'tree-node';
+                            
+                            // 各データアイテムの表示
+                            subRecord.dataItems.forEach((item, itemIndex) => {
+                                const itemNode = document.createElement('div');
+                                itemNode.className = 'node-content field-node';
+                                
+                                // オフセット、タイプ、値を表示
+                                let displayText = `<span class="offset-label">[0x${item.offset.toString(16).padStart(4, '0')}]</span> ${item.type} #${itemIndex + 1}: `;
+                                
+                                // データタイプに応じた表示形式
+                                if (typeof item.value === 'string') {
+                                    displayText += `"${item.value}"`;
+                                } else if (item.type.includes('浮動小数点')) {
+                                    displayText += item.value.toFixed(6);
+                                } else {
+                                    displayText += `${item.value} (0x${item.value.toString(16).padStart(item.size * 2, '0')})`;
+                                }
+                                
+                                itemNode.innerHTML = displayText;
+                                dataItemsContent.appendChild(itemNode);
+                            });
+                            
+                            subRecordContent.appendChild(dataItemsContent);
+                        }
+                        
+                        subRecordsContent.appendChild(subRecordNode);
+                        subRecordsContent.appendChild(subRecordContent);
+                    });
+                    
+                    recordContent.appendChild(subRecordsContent);
+                }
+                
+                recordsContent.appendChild(recordContent);
+            });
+            
+            container.appendChild(recordsContent);
+        }
+        
+        /**
+         * 16進数ダンプをレンダリングする関数
+         * @param {Uint8Array} data - バイナリデータ
+         * @param {HTMLElement} container - 表示するコンテナ要素
+         */
+        function renderHexDump(data, container) {
+            // コンテナをクリア
+            container.innerHTML = '';
+            
+            // 16バイトごとに表示
+            const bytesPerRow = 16;
+            let offsetCounter = 0;
+            
+            while (offsetCounter < data.length) {
+                const rowData = data.slice(offsetCounter, offsetCounter + bytesPerRow);
+                const hexRow = document.createElement('div');
+                hexRow.className = 'hex-row';
+                
+                // オフセット
+                const offsetElement = document.createElement('div');
+                offsetElement.className = 'hex-offset';
+                offsetElement.textContent = `0x${offsetCounter.toString(16).padStart(8, '0')}`;
+                hexRow.appendChild(offsetElement);
+                
+                // 16進数値
+                const hexValues = document.createElement('div');
+                hexValues.className = 'hex-values';
+                
+                // ASCII表現
+                const hexAscii = document.createElement('div');
+                hexAscii.className = 'hex-ascii';
+                
+                // 各バイトを処理
+                for (let i = 0; i < bytesPerRow; i++) {
+                    if (i < rowData.length) {
+                        const byte = rowData[i];
+                        
+                        // 16進数値
+                        const hexByte = document.createElement('span');
+                        hexByte.className = 'hex-byte';
+                        hexByte.textContent = byte.toString(16).padStart(2, '0');
+                        hexValues.appendChild(hexByte);
+                        
+                        // ASCII表現（表示可能な文字のみ）
+                        const asciiChar = (byte >= 32 && byte <= 126) ? String.fromCharCode(byte) : '.';
+                        hexAscii.textContent += asciiChar;
+                    } else {
+                        // データがない場合は空白
+                        const emptyByte = document.createElement('span');
+                        emptyByte.className = 'hex-byte';
+                        emptyByte.textContent = '  ';
+                        hexValues.appendChild(emptyByte);
+                        
+                        hexAscii.textContent += ' ';
+                    }
+                }
+                
+                hexRow.appendChild(hexValues);
+                hexRow.appendChild(hexAscii);
+                container.appendChild(hexRow);
+                
+                offsetCounter += bytesPerRow;
+            }
+        }
+        
+        // ======================================================================
+        // 比較機能
+        // ======================================================================
+        
+        /**
+         * 2つの解析済み構造を比較する関数
+         * @param {Object} base - 基準となる解析済み構造
+         * @param {Object} compare - 比較対象の解析済み構造
+         * @returns {Object} - 差分情報
+         */
+        function compareStructures(base, compare) {
+            const result = {
+                headerDiffs: [],         // ヘッダーの差分
+                recordDiffs: [],         // レコードの差分
+                missingRecords: [],      // 基準ファイルにのみ存在するレコード
+                additionalRecords: [],   // 比較ファイルにのみ存在するレコード
+                summary: {
+                    totalDiffs: 0,       // 差分の総数
+                    headerDiffs: 0,      // ヘッダーの差分数
+                    recordValueDiffs: 0, // レコード値の差分数
+                    structureDiffs: 0    // 構造的な差分数（レコードの追加/削除）
+                }
+            };
+            
+            // ヘッダーの比較
+            Object.keys(base.header).forEach(key => {
+                if (base.header[key] !== compare.header[key]) {
+                    result.headerDiffs.push({
+                        field: key,
+                        baseValue: base.header[key],
+                        compareValue: compare.header[key]
+                    });
+                    
+                    result.summary.headerDiffs++;
+                    result.summary.totalDiffs++;
+                }
+            });
+            
+            // レコードの対応付け（IDでマッピング）
+            const baseRecordMap = new Map();
+            base.records.forEach(record => {
+                baseRecordMap.set(record.ID, record);
+            });
+            
+            const compareRecordMap = new Map();
+            compare.records.forEach(record => {
+                compareRecordMap.set(record.ID, record);
+            });
+            
+            // 両方に存在するレコードの比較
+            baseRecordMap.forEach((baseRecord, recordID) => {
+                const compareRecord = compareRecordMap.get(recordID);
+                
+                if (compareRecord) {
+                    // レコードの比較
+                    const recordDiff = compareRecord(baseRecord, compareRecord);
+                    
+                    if (recordDiff.hasDifferences) {
+                        result.recordDiffs.push(recordDiff);
+                        result.summary.recordValueDiffs += recordDiff.totalDiffs;
+                        result.summary.totalDiffs += recordDiff.totalDiffs;
+                    }
+                    
+                    // 処理済みのレコードを削除
+                    compareRecordMap.delete(recordID);
+                } else {
+                    // 基準ファイルにのみ存在するレコード
+                    result.missingRecords.push(baseRecord);
+                    result.summary.structureDiffs++;
+                    result.summary.totalDiffs++;
+                }
+            });
+            
+            // 比較ファイルにのみ存在するレコード
+            compareRecordMap.forEach(record => {
+                result.additionalRecords.push(record);
+                result.summary.structureDiffs++;
+                result.summary.totalDiffs++;
+            });
+            
+            return result;
+        }
+        
+        /**
+         * レコードを比較する関数
+         * @param {Object} base - 基準となるレコード
+         * @param {Object} compare - 比較対象のレコード
+         * @returns {Object} - 差分情報
+         */
+        function compareRecord(base, compare) {
+            const result = {
+                recordID: base.ID,
+                fieldDiffs: [],          // フィールドの差分
+                subRecordDiffs: [],      // サブレコードの差分
+                missingSubRecords: [],   // 基準にのみ存在するサブレコード
+                additionalSubRecords: [], // 比較にのみ存在するサブレコード
+                hasDifferences: false,   // 差分があるかどうか
+                totalDiffs: 0            // 差分の総数
+            };
+            
+            // フィールドの比較
+            Object.keys(base).forEach(key => {
+                if (key !== 'subRecords' && base[key] !== compare[key]) {
+                    result.fieldDiffs.push({
+                        field: key,
+                        baseValue: base[key],
+                        compareValue: compare[key]
+                    });
+                    
+                    result.hasDifferences = true;
+                    result.totalDiffs++;
+                }
+            });
+            
+            // サブレコードの比較（IDでマッピング）
+            if (base.subRecords && compare.subRecords) {
+                const baseSubRecordMap = new Map();
+                base.subRecords.forEach(subRecord => {
+                    baseSubRecordMap.set(subRecord.サブID, subRecord);
+                });
+                
+                const compareSubRecordMap = new Map();
+                compare.subRecords.forEach(subRecord => {
+                    compareSubRecordMap.set(subRecord.サブID, subRecord);
+                });
+                
+                // 両方に存在するサブレコードの比較
+                baseSubRecordMap.forEach((baseSubRecord, subID) => {
+                    const compareSubRecord = compareSubRecordMap.get(subID);
+                    
+                    if (compareSubRecord) {
+                        // サブレコードの比較
+                        const subRecordDiff = compareSubRecord(baseSubRecord, compareSubRecord);
+                        
+                        if (subRecordDiff.hasDifferences) {
+                            result.subRecordDiffs.push(subRecordDiff);
+                            result.hasDifferences = true;
+                            result.totalDiffs += subRecordDiff.totalDiffs;
+                        }
+                        
+                        // 処理済みのサブレコードを削除
+                        compareSubRecordMap.delete(subID);
+                    } else {
+                        // 基準ファイルにのみ存在するサブレコード
+                        result.missingSubRecords.push(baseSubRecord);
+                        result.hasDifferences = true;
+                        result.totalDiffs++;
+                    }
+                });
+                
+                // 比較ファイルにのみ存在するサブレコード
+                compareSubRecordMap.forEach(subRecord => {
+                    result.additionalSubRecords.push(subRecord);
+                    result.hasDifferences = true;
+                    result.totalDiffs++;
+                });
+            }
+            
+            return result;
+        }
+        
+        /**
+         * サブレコードを比較する関数
+         * @param {Object} base - 基準となるサブレコード
+         * @param {Object} compare - 比較対象のサブレコード
+         * @returns {Object} - 差分情報
+         */
+        function compareSubRecord(base, compare) {
+            const result = {
+                subRecordID: base.サブID,
+                fieldDiffs: [],          // フィールドの差分
+                dataDiffs: [],           // データアイテムの差分
+                missingData: [],         // 基準にのみ存在するデータアイテム
+                additionalData: [],      // 比較にのみ存在するデータアイテム
+                hasDifferences: false,   // 差分があるかどうか
+                totalDiffs: 0            // 差分の総数
+            };
+            
+            // フィールドの比較
+            Object.keys(base).forEach(key => {
+                if (key !== 'dataItems' && base[key] !== compare[key]) {
+                    result.fieldDiffs.push({
+                        field: key,
+                        baseValue: base[key],
+                        compareValue: compare[key]
+                    });
+                    
+                    result.hasDifferences = true;
+                    result.totalDiffs++;
+                }
+            });
+            
+            // データアイテムの比較（インデックスでマッピング）
+            if (base.dataItems && compare.dataItems) {
+                const baseItemCount = base.dataItems.length;
+                const compareItemCount = compare.dataItems.length;
+                const maxItems = Math.max(baseItemCount, compareItemCount);
+                
+                for (let i = 0; i < maxItems; i++) {
+                    const baseItem = i < baseItemCount ? base.dataItems[i] : null;
+                    const compareItem = i < compareItemCount ? compare.dataItems[i] : null;
+                    
+                    if (baseItem && compareItem) {
+                        // 両方に存在する場合は値を比較
+                        if (baseItem.value !== compareItem.value) {
+                            result.dataDiffs.push({
+                                index: i,
+                                baseValue: baseItem.value,
+                                compareValue: compareItem.value,
+                                type: baseItem.type
+                            });
+                            
+                            result.hasDifferences = true;
+                            result.totalDiffs++;
+                        }
+                    } else if (baseItem) {
+                        // 基準にのみ存在する場合
+                        result.missingData.push({
+                            index: i,
+                            value: baseItem.value,
+                            type: baseItem.type
+                        });
+                        
+                        result.hasDifferences = true;
+                        result.totalDiffs++;
+                    } else if (compareItem) {
+                        // 比較にのみ存在する場合
+                        result.additionalData.push({
+                            index: i,
+                            value: compareItem.value,
+                            type: compareItem.type
+                        });
+                        
+                        result.hasDifferences = true;
+                        result.totalDiffs++;
+                    }
+                }
+            }
+            
+            return result;
+        }
+        
+        /**
+         * 左右比較表示をレンダリングする関数
+         * @param {Object} baseStructure - 基準となる解析済み構造
+         * @param {Object} compareStructure - 比較対象の解析済み構造
+         * @param {Object} comparisonResult - 比較結果
+         * @param {HTMLElement} container - 表示するコンテナ要素
+         */
+        function renderSideBySideComparison(baseStructure, compareStructure, comparisonResult, container) {
+            // コンテナをクリア
+            container.innerHTML = '';
+            
+            // 比較サマリーの表示
+            const summaryNode = document.createElement('div');
+            summaryNode.className = 'comparison-summary';
+            
+            let summaryText = `<strong>比較結果サマリー:</strong> 差分総数: ${comparisonResult.summary.totalDiffs}`;
+            if (comparisonResult.summary.headerDiffs > 0) {
+                summaryText += `, ヘッダー差分: ${comparisonResult.summary.headerDiffs}`;
+            }
+            if (comparisonResult.summary.recordValueDiffs > 0) {
+                summaryText += `, レコード値の差分: ${comparisonResult.summary.recordValueDiffs}`;
+            }
+            if (comparisonResult.summary.structureDiffs > 0) {
+                summaryText += `, 構造的な差分: ${comparisonResult.summary.structureDiffs}`;
+            }
+            
+            summaryNode.innerHTML = summaryText;
+            container.appendChild(summaryNode);
+            
+            // 左右のビューコンテナ
+            const comparisonView = document.createElement('div');
+            comparisonView.className = 'comparison-view';
+            
+            // 基準ファイル側のコンテナ
+            const baseColumn = document.createElement('div');
+            baseColumn.className = 'comparison-column';
+            
+            const baseHeader = document.createElement('div');
+            baseHeader.className = 'comparison-column-header';
+            baseHeader.textContent = '基準ファイル';
+            baseColumn.appendChild(baseHeader);
+            
+            // 比較ファイル側のコンテナ
+            const compareColumn = document.createElement('div');
+            compareColumn.className = 'comparison-column';
+            
+            const compareHeader = document.createElement('div');
+            compareHeader.className = 'comparison-column-header';
+            compareHeader.textContent = '比較ファイル';
+            compareColumn.appendChild(compareHeader);
+            
+            // ヘッダーの表示（両側）
+            const baseHeaderNode = document.createElement('div');
+            baseHeaderNode.className = 'node-content header-node collapsible';
+            baseHeaderNode.innerHTML = `ファイルヘッダー`;
+            baseColumn.appendChild(baseHeaderNode);
+            
+            const compareHeaderNode = document.createElement('div');
+            compareHeaderNode.className = 'node-content header-node collapsible';
+            compareHeaderNode.innerHTML = `ファイルヘッダー`;
+            compareColumn.appendChild(compareHeaderNode);
+            
+            const baseHeaderContent = document.createElement('div');
+            baseHeaderContent.className = 'tree-node';
+            
+            const compareHeaderContent = document.createElement('div');
+            compareHeaderContent.className = 'tree-node';
+            
+            // ヘッダーフィールドの表示と差分のハイライト
+            Object.entries(baseStructure.header).forEach(([key, value]) => {
+                const fieldDef = BINARY_STRUCTURE.header.fields.find(f => f.name === key);
+                
+                // 基準側のフィールド表示
+                const baseFieldNode = document.createElement('div');
+                const isDiff = comparisonResult.headerDiffs.some(diff => diff.field === key);
+                baseFieldNode.className = isDiff ? 'node-content field-node diff-highlight' : 'node-content field-node';
+                
+                let baseDisplayText = `${key}: ${value}`;
+                if (fieldDef) {
+                    if (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int')) {
+                        baseDisplayText += ` (0x${value.toString(16).padStart(fieldDef.size * 2, '0')})`;
+                    }
+                    baseDisplayText = `<span class="offset-label">[0x${fieldDef.offset.toString(16).padStart(4, '0')}]</span> ${baseDisplayText}`;
+                }
+                
+                baseFieldNode.innerHTML = baseDisplayText;
+                baseHeaderContent.appendChild(baseFieldNode);
+                
+                // 比較側のフィールド表示
+                const compareFieldNode = document.createElement('div');
+                compareFieldNode.className = isDiff ? 'node-content field-node diff-highlight' : 'node-content field-node';
+                
+                let compareDisplayText = `${key}: ${compareStructure.header[key]}`;
+                if (fieldDef) {
+                    if (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int')) {
+                        compareDisplayText += ` (0x${compareStructure.header[key].toString(16).padStart(fieldDef.size * 2, '0')})`;
+                    }
+                    compareDisplayText = `<span class="offset-label">[0x${fieldDef.offset.toString(16).padStart(4, '0')}]</span> ${compareDisplayText}`;
+                }
+                
+                compareFieldNode.innerHTML = compareDisplayText;
+                compareHeaderContent.appendChild(compareFieldNode);
+            });
+            
+            baseColumn.appendChild(baseHeaderContent);
+            compareColumn.appendChild(compareHeaderContent);
+            
+            // レコードセクション（両側）
+            const baseRecordsNode = document.createElement('div');
+            baseRecordsNode.className = 'node-content record-node collapsible';
+            baseRecordsNode.innerHTML = `レコード一覧 (${baseStructure.records.length}件)`;
+            baseColumn.appendChild(baseRecordsNode);
+            
+            const compareRecordsNode = document.createElement('div');
+            compareRecordsNode.className = 'node-content record-node collapsible';
+            compareRecordsNode.innerHTML = `レコード一覧 (${compareStructure.records.length}件)`;
+            compareColumn.appendChild(compareRecordsNode);
+            
+            const baseRecordsContent = document.createElement('div');
+            baseRecordsContent.className = 'tree-node';
+            
+            const compareRecordsContent = document.createElement('div');
+            compareRecordsContent.className = 'tree-node';
+            
+            // レコード一覧をIDでマッピング
+            const baseRecordMap = new Map();
+            baseStructure.records.forEach((record, index) => {
+                baseRecordMap.set(record.ID, { record, index });
+            });
+            
+            const compareRecordMap = new Map();
+            compareStructure.records.forEach((record, index) => {
+                compareRecordMap.set(record.ID, { record, index });
+            });
+            
+            // レコードIDのソートされたリスト
+            const allRecordIDs = Array.from(
+                new Set([...baseRecordMap.keys(), ...compareRecordMap.keys()])
+            ).sort((a, b) => a - b);
+            
+            // 各レコードIDについて処理
+            allRecordIDs.forEach(recordID => {
+                const baseRecordInfo = baseRecordMap.get(recordID);
+                const compareRecordInfo = compareRecordMap.get(recordID);
+                
+                // 基準側のレコード表示
+                if (baseRecordInfo) {
+                    const record = baseRecordInfo.record;
+                    const index = baseRecordInfo.index;
+                    
+                    // レコードの差分情報を取得
+                    const recordDiff = comparisonResult.recordDiffs.find(diff => diff.recordID === recordID);
+                    const isMissing = comparisonResult.missingRecords.some(rec => rec.ID === recordID);
+                    
+                    // レコードノード
+                    const recordNode = document.createElement('div');
+                    recordNode.className = isMissing 
+                        ? 'node-content record-node collapsible missing-element'
+                        : (recordDiff && recordDiff.hasDifferences)
+                            ? 'node-content record-node collapsible diff-highlight'
+                            : 'node-content record-node collapsible';
+                            
+                    recordNode.innerHTML = `レコード #${index + 1} (ID: ${record.ID})`;
+                    baseRecordsContent.appendChild(recordNode);
+                    
+                    // レコード内容
+                    const recordContent = document.createElement('div');
+                    recordContent.className = 'tree-node';
+                    
+                    // レコードフィールドの表示
+                    Object.entries(record).forEach(([key, value]) => {
+                        if (key !== 'subRecords') {
+                            const isDiff = recordDiff && recordDiff.fieldDiffs.some(diff => diff.field === key);
+                            
+                            const fieldNode = document.createElement('div');
+                            fieldNode.className = isDiff 
+                                ? 'node-content field-node diff-highlight'
+                                : 'node-content field-node';
+                            
+                            // フィールド値を表示
+                            let displayText = `${key}: ${value}`;
+                            const fieldDef = BINARY_STRUCTURE.records.fields.find(f => f.name === key);
+                            
+                            if (fieldDef) {
+                                if (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int')) {
+                                    displayText += ` (0x${value.toString(16).padStart(fieldDef.size * 2, '0')})`;
+                                }
+                                
+                                if (fieldDef.description) {
+                                    displayText += ` <span class="field-description">${fieldDef.description}</span>`;
+                                }
+                            }
+                            
+                            fieldNode.innerHTML = displayText;
+                            recordContent.appendChild(fieldNode);
+                        }
+                    });
+                    
+                    // サブレコードの表示（左側）
+                    if (record.subRecords && record.subRecords.length > 0) {
+                        renderSubRecordComparison(record, recordDiff, recordContent, 'base');
+                    }
+                    
+                    baseRecordsContent.appendChild(recordContent);
+                } else {
+                    // 基準側にないレコード（右側にのみ存在）
+                    const recordNode = document.createElement('div');
+                    recordNode.className = 'node-content record-node collapsible missing-element';
+                    recordNode.innerHTML = `レコード #? (ID: ${recordID}) - 基準ファイルには存在しません`;
+                    baseRecordsContent.appendChild(recordNode);
+                }
+                
+                // 比較側のレコード表示
+                if (compareRecordInfo) {
+                    const record = compareRecordInfo.record;
+                    const index = compareRecordInfo.index;
+                    
+                    // レコードの差分情報を取得
+                    const recordDiff = comparisonResult.recordDiffs.find(diff => diff.recordID === recordID);
+                    const isAdditional = comparisonResult.additionalRecords.some(rec => rec.ID === recordID);
+                    
+                    // レコードノード
+                    const recordNode = document.createElement('div');
+                    recordNode.className = isAdditional 
+                        ? 'node-content record-node collapsible additional-element'
+                        : (recordDiff && recordDiff.hasDifferences)
+                            ? 'node-content record-node collapsible diff-highlight'
+                            : 'node-content record-node collapsible';
+                            
+                    recordNode.innerHTML = `レコード #${index + 1} (ID: ${record.ID})`;
+                    compareRecordsContent.appendChild(recordNode);
+                    
+                    // レコード内容
+                    const recordContent = document.createElement('div');
+                    recordContent.className = 'tree-node';
+                    
+                    // レコードフィールドの表示
+                    Object.entries(record).forEach(([key, value]) => {
+                        if (key !== 'subRecords') {
+                            const isDiff = recordDiff && recordDiff.fieldDiffs.some(diff => diff.field === key);
+                            
+                            const fieldNode = document.createElement('div');
+                            fieldNode.className = isDiff 
+                                ? 'node-content field-node diff-highlight'
+                                : 'node-content field-node';
+                            
+                            // フィールド値を表示
+                            let displayText = `${key}: ${value}`;
+                            const fieldDef = BINARY_STRUCTURE.records.fields.find(f => f.name === key);
+                            
+                            if (fieldDef) {
+                                if (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int')) {
+                                    displayText += ` (0x${value.toString(16).padStart(fieldDef.size * 2, '0')})`;
+                                }
+                                
+                                if (fieldDef.description) {
+                                    displayText += ` <span class="field-description">${fieldDef.description}</span>`;
+                                }
+                            }
+                            
+                            fieldNode.innerHTML = displayText;
+                            recordContent.appendChild(fieldNode);
+                        }
+                    });
+                    
+                    // サブレコードの表示（右側）
+                    if (record.subRecords && record.subRecords.length > 0) {
+                        renderSubRecordComparison(record, recordDiff, recordContent, 'compare');
+                    }
+                    
+                    compareRecordsContent.appendChild(recordContent);
+                } else {
+                    // 比較側にないレコード（左側にのみ存在）
+                    const recordNode = document.createElement('div');
+                    recordNode.className = 'node-content record-node collapsible additional-element';
+                    recordNode.innerHTML = `レコード #? (ID: ${recordID}) - 比較ファイルには存在しません`;
+                    compareRecordsContent.appendChild(recordNode);
+                }
+            });
+            
+            baseColumn.appendChild(baseRecordsContent);
+            compareColumn.appendChild(compareRecordsContent);
+            
+            // 列を比較ビューに追加
+            comparisonView.appendChild(baseColumn);
+            comparisonView.appendChild(compareColumn);
+            
+            // 比較ビューをコンテナに追加
+            container.appendChild(comparisonView);
+        }
+        
+        /**
+         * サブレコードの比較表示を生成する関数
+         * @param {Object} record - レコード
+         * @param {Object} recordDiff - レコードの差分情報
+         * @param {HTMLElement} container - 表示するコンテナ要素
+         * @param {string} mode - 表示モード ('base' または 'compare')
+         */
+        function renderSubRecordComparison(record, recordDiff, container, mode) {
+            const subRecordsNode = document.createElement('div');
+            subRecordsNode.className = 'node-content subrecord-node collapsible';
+            subRecordsNode.innerHTML = `サブレコード一覧 (${record.subRecords.length}件)`;
+            container.appendChild(subRecordsNode);
+            
+            const subRecordsContent = document.createElement('div');
+            subRecordsContent.className = 'tree-node';
+            
+            // 各サブレコードの表示
+            record.subRecords.forEach((subRecord, subIndex) => {
+                // サブレコードの差分情報を取得
+                let subRecordDiff = null;
+                let isMissingOrAdditional = false;
+                
+                if (recordDiff) {
+                    // 差分があるサブレコードを検索
+                    subRecordDiff = recordDiff.subRecordDiffs.find(diff => diff.subRecordID === subRecord.サブID);
+                    
+                    // 片方にのみ存在するサブレコードかどうか
+                    if (mode === 'base') {
+                        isMissingOrAdditional = recordDiff.missingSubRecords.some(sr => sr.サブID === subRecord.サブID);
+                    } else if (mode === 'compare') {
+                        isMissingOrAdditional = recordDiff.additionalSubRecords.some(sr => sr.サブID === subRecord.サブID);
+                    }
+                }
+                
+                const subRecordNode = document.createElement('div');
+                subRecordNode.className = isMissingOrAdditional 
+                    ? (mode === 'base' ? 'node-content subrecord-node collapsible missing-element' : 'node-content subrecord-node collapsible additional-element')
+                    : (subRecordDiff && subRecordDiff.hasDifferences)
+                        ? 'node-content subrecord-node collapsible diff-highlight'
+                        : 'node-content subrecord-node collapsible';
+                
+                subRecordNode.innerHTML = `サブレコード #${subIndex + 1} (ID: ${subRecord.サブID})`;
+                subRecordsContent.appendChild(subRecordNode);
+                
+                const subRecordContent = document.createElement('div');
+                subRecordContent.className = 'tree-node';
+                
+                // サブレコードフィールドの表示
+                Object.entries(subRecord).forEach(([key, value]) => {
+                    if (key !== 'dataItems') {
+                        // フィールドに差分があるかチェック
+                        const isDiff = subRecordDiff && subRecordDiff.fieldDiffs.some(diff => diff.field === key);
+                        
+                        const fieldNode = document.createElement('div');
+                        fieldNode.className = isDiff 
+                            ? 'node-content field-node diff-highlight'
+                            : 'node-content field-node';
+                        
+                        // フィールド名、値、説明を表示
+                        let displayText = `${key}: ${value}`;
+                        const fieldDef = BINARY_STRUCTURE.subRecords.fields.find(f => f.name === key);
+                        
+                        if (fieldDef && fieldDef.description) {
+                            displayText += ` <span class="field-description">${fieldDef.description}</span>`;
+                        }
+                        
+                        fieldNode.innerHTML = displayText;
+                        subRecordContent.appendChild(fieldNode);
+                    }
+                });
+                
+                // データアイテムの表示
+                if (subRecord.dataItems && subRecord.dataItems.length > 0) {
+                    const dataItemsNode = document.createElement('div');
+                    dataItemsNode.className = 'node-content field-node collapsible';
+                    dataItemsNode.innerHTML = `データアイテム (${subRecord.dataItems.length}件)`;
+                    subRecordContent.appendChild(dataItemsNode);
+                    
+                    const dataItemsContent = document.createElement('div');
+                    dataItemsContent.className = 'tree-node';
+                    
+                    // 各データアイテムの表示
+                    subRecord.dataItems.forEach((item, itemIndex) => {
+                        // データアイテムに差分があるかチェック
+                        let isDiff = false;
+                        let isMissingOrAdditional = false;
+                        
+                        if (subRecordDiff) {
+                            // 値の差分を確認
+                            isDiff = subRecordDiff.dataDiffs.some(diff => diff.index === itemIndex);
+                            
+                            // 片方にのみ存在するデータアイテムかどうか
+                            if (mode === 'base') {
+                                isMissingOrAdditional = subRecordDiff.missingData.some(data => data.index === itemIndex);
+                            } else if (mode === 'compare') {
+                                isMissingOrAdditional = subRecordDiff.additionalData.some(data => data.index === itemIndex);
+                            }
+                        }
+                        
+                        const itemNode = document.createElement('div');
+                        itemNode.className = isMissingOrAdditional 
+                            ? (mode === 'base' ? 'node-content field-node missing-element' : 'node-content field-node additional-element')
+                            : isDiff
+                                ? 'node-content field-node diff-highlight'
+                                : 'node-content field-node';
+                        
+                        // オフセット、タイプ、値を表示
+                        let displayText = `<span class="offset-label">[0x${item.offset.toString(16).padStart(4, '0')}]</span> ${item.type} #${itemIndex + 1}: `;
+                        
+                        // データタイプに応じた表示形式
+                        if (typeof item.value === 'string') {
+                            displayText += `"${item.value}"`;
+                        } else if (item.type.includes('浮動小数点')) {
+                            displayText += item.value.toFixed(6);
+                        } else {
+                            displayText += `${item.value} (0x${item.value.toString(16).padStart(item.size * 2, '0')})`;
+                        }
+                        
+                        itemNode.innerHTML = displayText;
+                        dataItemsContent.appendChild(itemNode);
+                    });
+                    
+                    subRecordContent.appendChild(dataItemsContent);
+                }
+                
+                subRecordsContent.appendChild(subRecordContent);
+            });
+            
+            container.appendChild(subRecordsContent);
+        }
+        
+        /**
+         * 差分のみを表示する関数
+         * @param {Object} baseStructure - 基準となる解析済み構造
+         * @param {Object} compareStructure - 比較対象の解析済み構造
+         * @param {Object} comparisonResult - 比較結果
+         * @param {HTMLElement} container - 表示するコンテナ要素
+         */
+        function renderDifferencesOnly(baseStructure, compareStructure, comparisonResult, container) {
+            // コンテナをクリア
+            container.innerHTML = '';
+            
+            // 比較サマリーの表示
+            const summaryNode = document.createElement('div');
+            summaryNode.className = 'comparison-summary';
+            
+            let summaryText = `<strong>比較結果サマリー:</strong> 差分総数: ${comparisonResult.summary.totalDiffs}`;
+            if (comparisonResult.summary.headerDiffs > 0) {
+                summaryText += `, ヘッダー差分: ${comparisonResult.summary.headerDiffs}`;
+            }
+            if (comparisonResult.summary.recordValueDiffs > 0) {
+                summaryText += `, レコード値の差分: ${comparisonResult.summary.recordValueDiffs}`;
+            }
+            if (comparisonResult.summary.structureDiffs > 0) {
+                summaryText += `, 構造的な差分: ${comparisonResult.summary.structureDiffs}`;
+            }
+            
+            summaryNode.innerHTML = summaryText;
+            container.appendChild(summaryNode);
+            
+            // 差分表示のメインコンテナ
+            const diffOnlyView = document.createElement('div');
+            diffOnlyView.className = 'diff-only-view';
+            
+            // フィルターコントロール
+            const filterControls = document.createElement('div');
+            filterControls.className = 'diff-filters';
+            
+            const filterTypes = [
+                { id: 'header-diffs', label: 'ヘッダー差分', default: true },
+                { id: 'record-diffs', label: 'レコード値の差分', default: true },
+                { id: 'structure-diffs', label: '構造的な差分', default: true }
+            ];
+            
+            filterTypes.forEach(filter => {
+                const checkboxGroup = document.createElement('div');
+                checkboxGroup.className = 'diff-filter-checkbox';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = filter.id;
+                checkbox.checked = filter.default;
+                
+                checkbox.addEventListener('change', function() {
+                    // 対応するセクションの表示・非表示を切り替え
+                    const sections = document.querySelectorAll(`.diff-section[data-type="${filter.id}"]`);
+                    sections.forEach(section => {
+                        section.style.display = this.checked ? 'block' : 'none';
+                    });
+                });
+                
+                const label = document.createElement('label');
+                label.htmlFor = filter.id;
+                label.textContent = filter.label;
+                
+                checkboxGroup.appendChild(checkbox);
+                checkboxGroup.appendChild(label);
+                filterControls.appendChild(checkboxGroup);
+            });
+            
+            diffOnlyView.appendChild(filterControls);
+            
+            // 1. ヘッダー差分のセクション
+            if (comparisonResult.headerDiffs.length > 0) {
+                const headerDiffSection = document.createElement('div');
+                headerDiffSection.className = 'diff-section';
+                headerDiffSection.dataset.type = 'header-diffs';
+                
+                const sectionTitle = document.createElement('div');
+                sectionTitle.className = 'diff-section-title';
+                sectionTitle.textContent = 'ヘッダー差分';
+                headerDiffSection.appendChild(sectionTitle);
+                
+                // ヘッダー差分のリスト
+                comparisonResult.headerDiffs.forEach(diff => {
+                    const diffItem = document.createElement('div');
+                    diffItem.className = 'node-content field-node diff-highlight';
+                    
+                    // フィールド定義を検索
+                    const fieldDef = BINARY_STRUCTURE.header.fields.find(f => f.name === diff.field);
+                    
+                    let displayText = `${diff.field}: `;
+                    
+                    // 値の表示形式を決定
+                    if (fieldDef && (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int'))) {
+                        displayText += `${diff.baseValue} (0x${diff.baseValue.toString(16)}) → ${diff.compareValue} (0x${diff.compareValue.toString(16)})`;
+                    } else {
+                        displayText += `${diff.baseValue} → ${diff.compareValue}`;
+                    }
+                    
+                    diffItem.innerHTML = displayText;
+                    headerDiffSection.appendChild(diffItem);
+                });
+                
+                diffOnlyView.appendChild(headerDiffSection);
+            }
+            
+            // 2. レコード値の差分セクション
+            if (comparisonResult.recordDiffs.length > 0) {
+                const recordDiffSection = document.createElement('div');
+                recordDiffSection.className = 'diff-section';
+                recordDiffSection.dataset.type = 'record-diffs';
+                
+                const sectionTitle = document.createElement('div');
+                sectionTitle.className = 'diff-section-title';
+                sectionTitle.textContent = 'レコード値の差分';
+                recordDiffSection.appendChild(sectionTitle);
+                
+                // 各レコードの差分を処理
+                comparisonResult.recordDiffs.forEach(recordDiff => {
+                    // レコードID
+                    const recordHeader = document.createElement('div');
+                    recordHeader.className = 'node-content record-node diff-highlight';
+                    recordHeader.innerHTML = `レコード ID: ${recordDiff.recordID}`;
+                    recordDiffSection.appendChild(recordHeader);
+                    
+                    // レコードフィールドの差分
+                    recordDiff.fieldDiffs.forEach(fieldDiff => {
+                        const diffItem = document.createElement('div');
+                        diffItem.className = 'node-content field-node diff-highlight';
+                        diffItem.style.marginLeft = '20px';
+                        
+                        // フィールド定義を検索
+                        const fieldDef = BINARY_STRUCTURE.records.fields.find(f => f.name === fieldDiff.field);
+                        
+                        let displayText = `${fieldDiff.field}: `;
+                        
+                        // 値の表示形式を決定
+                        if (fieldDef && (fieldDef.type.startsWith('uint') || fieldDef.type.startsWith('int'))) {
+                            displayText += `${fieldDiff.baseValue} (0x${fieldDiff.baseValue.toString(16)}) → ${fieldDiff.compareValue} (0x${fieldDiff.compareValue.toString(16)})`;
+                        } else {
+                            displayText += `${fieldDiff.baseValue} → ${fieldDiff.compareValue}`;
+                        }
+                        
+                        diffItem.innerHTML = displayText;
+                        recordDiffSection.appendChild(diffItem);
+                    });
+                    
+                    // サブレコードの差分
+                    recordDiff.subRecordDiffs.forEach(subRecordDiff => {
+                        const subRecordHeader = document.createElement('div');
+                        subRecordHeader.className = 'node-content subrecord-node diff-highlight';
+                        subRecordHeader.style.marginLeft = '20px';
+                        subRecordHeader.innerHTML = `サブレコード ID: ${subRecordDiff.subRecordID}`;
+                        recordDiffSection.appendChild(subRecordHeader);
+                        
+                        // サブレコードフィールドの差分
+                        subRecordDiff.fieldDiffs.forEach(fieldDiff => {
+                            const diffItem = document.createElement('div');
+                            diffItem.className = 'node-content field-node diff-highlight';
+                            diffItem.style.marginLeft = '40px';
+                            diffItem.innerHTML = `${fieldDiff.field}: ${fieldDiff.baseValue} → ${fieldDiff.compareValue}`;
+                            recordDiffSection.appendChild(diffItem);
+                        });
+                        
+                        // データアイテムの差分
+                        subRecordDiff.dataDiffs.forEach(dataDiff => {
+                            const diffItem = document.createElement('div');
+                            diffItem.className = 'node-content field-node diff-highlight';
+                            diffItem.style.marginLeft = '40px';
+                            
+                            // データタイプに応じた表示形式
+                            let baseDisplay, compareDisplay;
+                            if (typeof dataDiff.baseValue === 'string') {
+                                baseDisplay = `"${dataDiff.baseValue}"`;
+                                compareDisplay = `"${dataDiff.compareValue}"`;
+                            } else if (dataDiff.type.includes('浮動小数点')) {
+                                baseDisplay = dataDiff.baseValue.toFixed(6);
+                                compareDisplay = dataDiff.compareValue.toFixed(6);
+                            } else {
+                                baseDisplay = `${dataDiff.baseValue} (0x${dataDiff.baseValue.toString(16)})`;
+                                compareDisplay = `${dataDiff.compareValue} (0x${dataDiff.compareValue.toString(16)})`;
+                            }
+                            
+                            diffItem.innerHTML = `データアイテム #${dataDiff.index}: ${baseDisplay} → ${compareDisplay}`;
+                            recordDiffSection.appendChild(diffItem);
+                        });
+                    });
+                });
+                
+                diffOnlyView.appendChild(recordDiffSection);
+            }
+            
+            // 3. 構造的な差分セクション
+            if (comparisonResult.missingRecords.length > 0 || comparisonResult.additionalRecords.length > 0) {
+                const structureDiffSection = document.createElement('div');
+                structureDiffSection.className = 'diff-section';
+                structureDiffSection.dataset.type = 'structure-diffs';
+                
+                const sectionTitle = document.createElement('div');
+                sectionTitle.className = 'diff-section-title';
+                sectionTitle.textContent = '構造的な差分';
+                structureDiffSection.appendChild(sectionTitle);
+                
+                // 基準ファイルにのみ存在するレコード
+                if (comparisonResult.missingRecords.length > 0) {
+                    const missingHeader = document.createElement('div');
+                    missingHeader.className = 'node-content record-node missing-element';
+                    missingHeader.innerHTML = '基準ファイルにのみ存在するレコード:';
+                    structureDiffSection.appendChild(missingHeader);
+                    
+                    comparisonResult.missingRecords.forEach(record => {
+                        const recordItem = document.createElement('div');
+                        recordItem.className = 'node-content field-node missing-element';
+                        recordItem.style.marginLeft = '20px';
+                        recordItem.innerHTML = `レコード ID: ${record.ID}`;
+                        structureDiffSection.appendChild(recordItem);
+                    });
+                }
+                
+                // 比較ファイルにのみ存在するレコード
+                if (comparisonResult.additionalRecords.length > 0) {
+                    const additionalHeader = document.createElement('div');
+                    additionalHeader.className = 'node-content record-node additional-element';
+                    additionalHeader.innerHTML = '比較ファイルにのみ存在するレコード:';
+                    structureDiffSection.appendChild(additionalHeader);
+                    
+                    comparisonResult.additionalRecords.forEach(record => {
+                        const recordItem = document.createElement('div');
+                        recordItem.className = 'node-content field-node additional-element';
+                        recordItem.style.marginLeft = '20px';
+                        recordItem.innerHTML = `レコード ID: ${record.ID}`;
+                        structureDiffSection.appendChild(recordItem);
+                    });
+                }
+                
+                diffOnlyView.appendChild(structureDiffSection);
+            }
+            
+            container.appendChild(diffOnlyView);
+        }
+    </script>
+</body>
+</html>
